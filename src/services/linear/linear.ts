@@ -1,9 +1,4 @@
-import {
-  LinearClient,
-  User,
-  Issue,
-  Team,
-} from "@linear/sdk";
+import { LinearClient, User, Issue, Team } from "@linear/sdk";
 import {
   IdComparator,
   NullableCycleFilter,
@@ -16,20 +11,18 @@ import * as vscode from "vscode";
 // fetch the details for the sub issue like the id, checkout branch
 
 export default class Linear {
-
   linearClient: LinearClient;
   me: User = {} as User;
   teams: Team[] = [];
 
-  constructor(apiKey: string) {
-    this.linearClient = new LinearClient({ apiKey });
+  constructor(accessToken: string) {
+    this.linearClient = new LinearClient({ accessToken });
   }
 
   async init() {
     this.me = await this.linearClient.viewer;
     this.teams = (await this.me.teams()).nodes;
   }
-
 
   async getAllIssues(): Promise<Issue[]> {
     const myIssues = await this.me.assignedIssues({
@@ -94,7 +87,6 @@ export default class Linear {
   }
 
   async addStartCommentToIssue(issueIdentifier: string) {
-
     const issues = await this.me.assignedIssues({});
 
     const trimmedIssueIdentifier = issueIdentifier.trimStart().trimEnd();

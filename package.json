@@ -39,31 +39,31 @@
     "viewsWelcome": [
       {
         "view": "linearIssues",
-        "contents": "No linear api key found; [find key](https://linear.app/dyte/settings/api).\n[Add Linear Key](command:linear-flow.inputLinearApiKey)"
+        "contents": "Retriving session from Linear Connect..."
       }
     ],
     "commands": [
       {
-        "command":"linear-flow.inputLinearApiKey",
+        "command": "linear-flow.inputLinearApiKey",
         "title": "Input Linear Key"
       },
       {
-        "command":"linear-flow.showTicket",
+        "command": "linear-flow.showTicket",
         "title": "Show Current Ticket"
       },
       {
-        "command":"linear-flow.openTicketInWebView",
+        "command": "linear-flow.openTicketInWebView",
         "title": "Open Current TIcket in Web View"
       },
       {
-        "command":"linear-flow.refreshTicket",
+        "command": "linear-flow.refreshTicket",
         "title": "Refresh"
       }
     ],
     "menus": {
       "view/title": [
         {
-          "command":"linear-flow.refreshTicket",
+          "command": "linear-flow.refreshTicket",
           "when": "view == linearIssues",
           "group": "navigation"
         }
@@ -96,5 +96,8 @@
     "@linear/sdk": "^7.0.1",
     "dotenv": "^16.3.1",
     "marked": "^7.0.3"
-  }
+  },
+  "extensionDependencies": [
+    "linear.linear-connect"
+  ]
 }
