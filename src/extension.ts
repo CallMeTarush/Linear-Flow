@@ -16,30 +16,32 @@ const linearAPIStorageKey = "LINEAR_API_STORAGE_KEY";
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
+export async function activate(context: vscode.ExtensionContext) {
+  const session = await vscode.authentication.getSession(
+    "linear", // Linear VS Code authentication provider ID
+    ["read"], // OAuth scopes we're requesting
+    { createIfNone: true }
+  );
 
-  const apiKey = context.globalState.get(linearAPIStorageKey);
-  if (apiKey && (apiKey as string).startsWith("lin_api")) {
-    const linearIssueProvider = new LinearIssueProvider(apiKey as string);
+  if (session) {
+    const linearIssueProvider = new LinearIssueProvider(session.accessToken);
     linearIssueProvider.linear.init().then(() => {
       vscode.window.registerTreeDataProvider(
         "linearIssues",
         linearIssueProvider
       );
 
-
-      vscode.commands.registerCommand(
-        "linear-flow.refreshTicket",
-        async () => {
-          linearIssueProvider.refresh();
-        }
-      );
+      vscode.commands.registerCommand("linear-flow.refreshTicket", async () => {
+        linearIssueProvider.refresh();
+      });
 
       const folders = vscode.workspace.workspaceFolders;
       /**
        * Will only reach this in case there is no workspace open
        */
-      if (!folders) { return; }
+      if (!folders) {
+        return;
+      }
       const pwd = folders[0].uri.path;
       exec(
         `cd ${pwd} && git rev-parse --abbrev-ref HEAD`,
@@ -58,67 +60,69 @@ export function activate(context: vscode.ExtensionContext) {
 
           const issueIdentifier = branches[1].toLocaleUpperCase();
 
-          await linearIssueProvider.linear.addStartCommentToIssue(issueIdentifier);
-          await linearIssueProvider.linear.addEndCommentToIssue(issueIdentifier);
+          await linearIssueProvider.linear.addStartCommentToIssue(
+            issueIdentifier
+          );
+          await linearIssueProvider.linear.addEndCommentToIssue(
+            issueIdentifier
+          );
 
-		  setInterval(async () => {
-			  await linearIssueProvider.linear.updateIssueComment(issueIdentifier);
-		  }, 30 * 1000);
+          setInterval(async () => {
+            await linearIssueProvider.linear.updateIssueComment(
+              issueIdentifier
+            );
+          }, 30 * 1000);
         }
       );
     });
+  } else {
+    console.error(
+      "Something went wrong, could not acquire a Linear API session."
+    );
   }
 
-  vscode.commands.registerCommand(
-   "linear-flow.inputLinearApiKey",
-    async () => {
-      const input = await vscode.window.showInputBox({
-        placeHolder: "lin_api_*",
-        prompt: "Enter Linear API Key",
-      });
-      const linearIssueProvider = new LinearIssueProvider(input!);
-      await linearIssueProvider.linear.init();
+  vscode.commands.registerCommand("linear-flow.inputLinearApiKey", async () => {
+    const input = await vscode.window.showInputBox({
+      placeHolder: "lin_api_*",
+      prompt: "Enter Linear API Key",
+    });
+    const linearIssueProvider = new LinearIssueProvider(input!);
+    await linearIssueProvider.linear.init();
 
-      // Only set when successful
-      context.globalState.update(linearAPIStorageKey, input);
-      vscode.window.registerTreeDataProvider(
-        "linearIssues",
-        linearIssueProvider
-      );
-      vscode.commands.registerCommand(
-        "linear-flow.refreshTicket",
-        async () => {
-          linearIssueProvider.refresh();
-        }
-      );
-    }
-  );
+    // Only set when successful
+    context.globalState.update(linearAPIStorageKey, input);
+    vscode.window.registerTreeDataProvider("linearIssues", linearIssueProvider);
+    vscode.commands.registerCommand("linear-flow.refreshTicket", async () => {
+      linearIssueProvider.refresh();
+    });
+  });
 
   vscode.commands.registerCommand(
-   "linear-flow.openTicketInWebView",
+    "linear-flow.openTicketInWebView",
     async (issue: Issue) => {
-
       // Create and show a new webview
-	    const panel = vscode.window.createWebviewPanel(
-        'ticketDetails', // Identifies the type of the webview. Used internally
-        'Ticket Details', // Title of the panel displayed to the user
+      const panel = vscode.window.createWebviewPanel(
+        "ticketDetails", // Identifies the type of the webview. Used internally
+        "Ticket Details", // Title of the panel displayed to the user
         vscode.ViewColumn.Beside, // Editor column to show the new webview panel in.
         {
           enableScripts: true,
         }
       );
-      const [comments, state] = await Promise.all([issue.comments(), issue.state]);
+      const [comments, state] = await Promise.all([
+        issue.comments(),
+        issue.state,
+      ]);
       panel.webview.html = getWebviewContent(issue, comments.nodes, state);
 
       panel.webview.onDidReceiveMessage(
         (message) => {
           switch (message.command) {
-          case "openineditor":
-            vscode.commands.executeCommand(
-           "linear-flow.openTicketInEditor",
-            [issue.branchName]
-            );
-            return;
+            case "openineditor":
+              vscode.commands.executeCommand("linear-flow.openTicketInEditor", [
+                issue.branchName,
+              ]);
+              return;
           }
         },
         undefined,
@@ -128,15 +132,16 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   vscode.commands.registerCommand(
-   "linear-flow.openTicketInEditor",
+    "linear-flow.openTicketInEditor",
     async (branchName: string) => {
-
       const folders = vscode.workspace.workspaceFolders;
       /**
        * Will only reach this in case there is no workspace open
        */
       if (!folders) {
-        vscode.window.showErrorMessage('Please open your work directory before trying to open an issue!');
+        vscode.window.showErrorMessage(
+          "Please open your work directory before trying to open an issue!"
+        );
         return;
       }
       const pwd = folders[0].uri.path;
